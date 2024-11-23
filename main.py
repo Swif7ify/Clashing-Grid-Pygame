@@ -1,9 +1,10 @@
 import pygame
+import random
 
 class Game:
     def __init__(self):
         pygame.init()
-        self.width, self.height = 700, 700
+        self.width, self.height = 750, 750
         self.screen = pygame.display.set_mode((self.width, self.height))
         self.background = (0, 0, 0)
         pygame.display.set_caption("Clashing Grid")
@@ -22,10 +23,16 @@ class Game:
         self.rows, self.cols = 10, 10
         self.cell_width = self.canvas_width // self.cols
         self.cell_height = self.canvas_height // self.rows
+        self.grid = [[None for _ in range(self.cols)] for _ in range(self.rows)]
 
         # Colors
-        self.player1_color = (0, 120, 255)
-        self.player2_color = (255, 50, 50)
+        self.player1_color = pygame.image.load("objects/player1Piece.png").convert_alpha()
+        self.player1_width, self.player1_height = self.player1_color.get_width(), self.player1_color.get_height()
+        self.player1_color = pygame.transform.scale(self.player1_color, (self.cell_width - 15, self.cell_height - 5))
+
+        self.player2_color = pygame.image.load("objects/player2Piece.png").convert_alpha()
+        self.player2_width, self.player2_height = self.player2_color.get_width(), self.player2_color.get_height()
+        self.player2_color = pygame.transform.scale(self.player2_color, (self.cell_width - 15, self.cell_height - 5))
         self.canvas_color = (29, 30, 30)
 
         # font
@@ -44,28 +51,64 @@ class Game:
                 pygame.draw.rect(self.screen, 0, (x, y, self.cell_width, self.cell_height))
                 pygame.draw.rect(self.screen, (75, 75, 75), (x, y, self.cell_width, self.cell_height), 1)
 
+                if self.grid[row][col] == 1:
+                    self.screen.blit(self.player1_color, (x + 7, y + 2))
+                elif self.grid[row][col] == 2:
+                    self.screen.blit(self.player2_color, (x + 7, y + 2))
+
+    def get_neighbors(self, row, col):
+        neighbors = []
+        for dr, dc in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
+            nr, nc = row + dr, col + dc
+            if 0 <= nr < self.rows and 0 <= nc < self.cols:
+                neighbors.append((nr, nc))
+        return neighbors
+
+    def random_expand(self, row, col):
+        neighbors = self.get_neighbors(row, col)
+        valid_neighbors = [(nr, nc) for nr, nc in neighbors if self.grid[nr][nc] is None]
+
+        if valid_neighbors:
+            new_cell = random.choice(valid_neighbors)
+            self.grid[new_cell[0]][new_cell[1]] = self.playerTurn
+
+    def handle_click(self, pos):
+        x, y = pos
+        col = (x - self.canvas_screen.x) // self.cell_width
+        row = (y - self.canvas_screen.y) // self.cell_height
+
+        if 0 <= row < self.rows and 0 <= col < self.cols:  # Ensure click is within the grid
+            if self.grid[row][col] is None:  # If the clicked cell is empty
+                neighbors = self.get_neighbors(row, col)
+                if any(self.grid[nr][nc] == self.playerTurn for nr, nc in neighbors):  # Valid neighbor check
+                    self.grid[row][col] = self.playerTurn  # Update the grid
+                    self.random_expand(row, col)  # Expand to a random valid neighbor
+                    self.playerTurn = 2 if self.playerTurn == 1 else 1  # Alternate turn
+
     def player_turn(self):
         pass
 
     def player_score(self):
-        pass
+        self.player1_score = sum(cell == 1 for row in self.grid for cell in row)
+        self.player2_score = sum(cell == 2 for row in self.grid for cell in row)
 
     def draw_header(self):
         title_text = self.title_font.render(f"Player {self.playerTurn}", True, (255, 255, 255))
-        title_text_rect = title_text.get_rect(center=(self.width // 2, 50))
+        title_text_rect = title_text.get_rect(center=(self.width // 2, 100))
 
         player1_score = self.title_font.render(f"P1:{self.player1_score}", True, (255, 255, 255))
-        player1_score_rect = player1_score.get_rect(center=(self.width // 6 - 10, 90))
         player2_score = self.title_font.render(f"P2:{self.player2_score}", True, (255, 255, 255))
-        player2_score_rect = player2_score.get_rect(center=(605, 90))
 
         self.screen.blit(title_text, title_text_rect)
-        self.screen.blit(player1_score, player1_score_rect)
-        self.screen.blit(player2_score, player2_score_rect)
+        self.screen.blit(player1_score, (self.width // 10, 130))
+        self.screen.blit(player2_score, (590, 130))
 
     def run(self):
-        pauseButton = pygame.image.load("objects/pauseButton.png").convert_alpha()
-        pauseButton_rect = pauseButton.get_rect(center=(self.width - 30, 30))
+        # place initial cell
+        self.grid[random.randint(1, self.rows) // 2][self.cols // 3] = 1
+        self.grid[random.randint(1, self.rows) // 2][2 * self.cols // 3] = 2
+        pauseButton = pygame.transform.scale(pygame.image.load("objects/pauseButton.png").convert_alpha(), (40, 40))
+        pauseButton_rect = pauseButton.get_rect(center=(self.width - 50, 40))
         while self.running:
             pygame.display.update()
             for event in pygame.event.get():
@@ -78,7 +121,15 @@ class Game:
                     else:
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
 
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if pauseButton_rect.collidepoint(event.pos):
+                        print("Pause Button Clicked")
+                    elif self.canvas_screen.collidepoint(event.pos):
+                        self.handle_click(event.pos)
+
+            self.screen.fill(self.background)
             self.screen.blit(pauseButton, pauseButton_rect)
+            self.player_score()
             self.draw_header() # draws game header
             self.draw_grid() # draws grid
             self.clock.tick(60)
