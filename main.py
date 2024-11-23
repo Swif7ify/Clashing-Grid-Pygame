@@ -1,5 +1,6 @@
 import pygame
 import random
+import sys
 
 class Game:
     def __init__(self):
@@ -20,7 +21,7 @@ class Game:
         self.canvas_screen = pygame.Rect((self.width - 600) // 2, (self.height - 580), self.canvas_width, self.canvas_height)
 
         # Grid size
-        self.rows, self.cols = 10, 10
+        self.rows, self.cols = 5, 5
         self.cell_width = self.canvas_width // self.cols
         self.cell_height = self.canvas_height // self.rows
         self.grid = [[None for _ in range(self.cols)] for _ in range(self.rows)]
@@ -39,8 +40,22 @@ class Game:
         self.title_font = pygame.font.Font("fonts/Quinquefive-ALoRM.ttf", 18)
         self.sub_title_font = pygame.font.Font("fonts/GamestationCond.otf", 32)
 
+        # delay
+        self.delay_active = False
+        self.delay_start_time = 0
+        self.delay_duration = 2000
+
         # FPS
         self.clock = pygame.time.Clock()
+
+    def main_menu(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    sys.exit()
+
+            self.screen.fill(self.background)
+            pygame.display.update()
 
     def draw_grid(self):
         for row in range(self.rows):
@@ -55,6 +70,15 @@ class Game:
                     self.screen.blit(self.player1_color, (x + 7, y + 2))
                 elif self.grid[row][col] == 2:
                     self.screen.blit(self.player2_color, (x + 7, y + 2))
+
+    def place_initial_cell(self):
+        self.player1_score = 0
+        self.player2_score = 0
+        self.grid = [[None for _ in range(self.cols)] for _ in range(self.rows)]
+        self.playerTurn = 1
+
+        self.grid[random.randint(1, self.rows) // 2][self.cols // 3] = 1
+        self.grid[random.randint(1, self.rows) // 2][2 * self.cols // 3] = 2
 
     def get_neighbors(self, row, col):
         neighbors = []
@@ -85,8 +109,83 @@ class Game:
                     self.random_expand(row, col)  # Expand to a random valid neighbor
                     self.playerTurn = 2 if self.playerTurn == 1 else 1  # Alternate turn
 
-    def player_turn(self):
-        pass
+    def check_winner(self):
+        for row in range(self.rows):
+            for col in range(self.cols):
+                if self.grid[row][col] is None:
+                    neighbors = self.get_neighbors(row, col)
+                    if any(self.grid[nr][nc] == self.playerTurn for nr, nc in neighbors):
+                        return  # Current player has valid moves, continue the game
+
+        # If no valid moves, fill all remaining cells with the opponent's pieces
+        opponent = 2 if self.playerTurn == 1 else 1
+        for row in range(self.rows):
+            for col in range(self.cols):
+                if self.grid[row][col] is None:
+                    self.grid[row][col] = opponent
+
+        # Proceed to the winner method
+        pygame.display.update()
+        self.delay_active = True
+        self.delay_start_time = pygame.time.get_ticks()
+
+
+    def winner(self):
+        if self.player1_score == self.player2_score:
+            game_overText = self.title_font.render("Draw", True, (255, 255, 255))
+            game_overText_rect = game_overText.get_rect(center=(self.width // 2, 100))
+            playerImg = pygame.transform.scale(pygame.image.load("objects/drawnGame.png").convert_alpha(), (300, 300))
+            playerImg_rect = playerImg.get_rect(center=(self.width // 2, self.height // 2 - 30))
+        else:
+            game_overText = self.title_font.render(f"Player {1 if self.player1_score > self.player2_score else 2} WINS! ", True, (255, 255, 255))
+            game_overText_rect = game_overText.get_rect(center=(self.width // 2, 100))
+            playerImg = pygame.transform.scale(pygame.image.load(
+                "objects/player1Crowned.png" if self.player1_score > self.player2_score else "objects/player2Crowned.png").convert_alpha(),
+                                               (300, 300))
+            playerImg_rect = playerImg.get_rect(center=(self.width // 2, self.height // 2 - 30))
+
+        try_againText = self.title_font.render("Try Again?", True, (255, 255, 255))
+        try_againText_rect = try_againText.get_rect(center=(self.width // 2, 140))
+
+        main_menuText = self.sub_title_font.render("Main Menu", True, (255, 255, 255))
+        main_menuText_rect = main_menuText.get_rect(center=(self.width // 2, self.height // 2 + 180))
+
+        restartText = self.sub_title_font.render("Restart", True, (255, 255, 255))
+        restartText_rect = restartText.get_rect(center=(self.width // 2, self.height // 2 + 230))
+
+        quitText = self.sub_title_font.render("Quit", True, (255, 255, 255))
+        quitText_rect = quitText.get_rect(center=(self.width // 2, self.height // 2 + 280))
+
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                    sys.exit()
+
+                if event.type == pygame.MOUSEMOTION:
+                    if main_menuText_rect.collidepoint(event.pos) or restartText_rect.collidepoint(event.pos) or quitText_rect.collidepoint(event.pos):
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                    else:
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if restartText_rect.collidepoint(event.pos):
+                        self.place_initial_cell()
+                        return
+                    elif main_menuText_rect.collidepoint(event.pos):
+                        self.run()
+                        return
+                    elif quitText_rect.collidepoint(event.pos):
+                        sys.exit()
+
+            self.screen.fill(self.background)
+            self.screen.blit(game_overText, game_overText_rect)
+            self.screen.blit(try_againText, try_againText_rect)
+            self.screen.blit(playerImg, playerImg_rect)
+            self.screen.blit(main_menuText, main_menuText_rect)
+            self.screen.blit(restartText, restartText_rect)
+            self.screen.blit(quitText, quitText_rect)
+            pygame.display.update()
 
     def player_score(self):
         self.player1_score = sum(cell == 1 for row in self.grid for cell in row)
@@ -104,9 +203,9 @@ class Game:
         self.screen.blit(player2_score, (590, 130))
 
     def run(self):
-        # place initial cell
-        self.grid[random.randint(1, self.rows) // 2][self.cols // 3] = 1
-        self.grid[random.randint(1, self.rows) // 2][2 * self.cols // 3] = 2
+        # self.main_menu()
+        self.place_initial_cell()
+
         pauseButton = pygame.transform.scale(pygame.image.load("objects/pauseButton.png").convert_alpha(), (40, 40))
         pauseButton_rect = pauseButton.get_rect(center=(self.width - 50, 40))
         while self.running:
@@ -132,6 +231,13 @@ class Game:
             self.player_score()
             self.draw_header() # draws game header
             self.draw_grid() # draws grid
+            if self.delay_active:
+                current_time = pygame.time.get_ticks()
+                if current_time - self.delay_start_time >= self.delay_duration:
+                    self.delay_active = False
+                    self.winner()
+            else:
+                self.check_winner()
             self.clock.tick(60)
             pygame.display.update()
 
@@ -139,3 +245,6 @@ class Game:
 if __name__ == "__main__":
     game = Game()
     game.run()
+    sys.exit()
+
+# implementation of main screen
