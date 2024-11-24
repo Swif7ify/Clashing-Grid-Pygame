@@ -2,8 +2,8 @@ import os
 import pygame
 
 class Button(pygame.sprite.Sprite):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, group):
+        super().__init__(group)
         button1 = pygame.transform.scale(pygame.image.load(os.path.join("sprites", "offButton.png")), (139, 115))
         button2 = pygame.transform.scale(pygame.image.load(os.path.join("sprites", "onButton.png")), (139, 104))
         self.images = [button1, button2]

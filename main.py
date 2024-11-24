@@ -16,6 +16,9 @@ class Game:
         self.playerTurn = 1
         self.player1_score = 0
         self.player2_score = 0
+        self.multiplayer = False
+        self.inactive_color = (128, 128, 128)
+        self.active_color = (255, 255, 255)
 
         # game settings
         self.expansion = 1
@@ -32,7 +35,8 @@ class Game:
         self.canvas_screen = pygame.Rect((self.width - 600) // 2, (self.height - 580), self.canvas_width, self.canvas_height)
 
         # Grid size
-        self.rows, self.cols = 6, 6
+        self.rows = 6
+        self.cols = 6
         self.cell_width = self.canvas_width // self.cols
         self.cell_height = self.canvas_height // self.rows
         self.grid = [[None for _ in range(self.cols)] for _ in range(self.rows)]
@@ -60,8 +64,8 @@ class Game:
         self.delay_duration = 2000
 
         # button sprite
-        self.sprite_button = Button()
-        self.all_sprite = pygame.sprite.Group(self.sprite_button)
+        self.all_sprite = pygame.sprite.Group()
+        self.sprite_button = Button(self.all_sprite)
 
         # FPS
         self.clock = pygame.time.Clock()
@@ -81,7 +85,7 @@ class Game:
         local_text = self.sub_title_font.render("Local", True, (255, 255, 255))
         local_text_rect = local_text.get_rect(center=(self.width // 2, 500))
 
-        multiplayer_text = self.sub_title_font.render("Multiplayer", True, (255, 255, 255))
+        multiplayer_text = self.sub_title_font.render("Multiplayer", True, self.active_color if self.multiplayer else self.inactive_color)
         multiplayer_text_rect = multiplayer_text.get_rect(center=(self.width // 2, 560))
 
         quit_text = self.sub_title_font.render("Quit", True, (255, 255, 255))
@@ -97,7 +101,9 @@ class Game:
                     sys.exit()
 
                 if event.type == pygame.MOUSEMOTION:
-                    if helpImg_rect.collidepoint(event.pos) or local_text_rect.collidepoint(event.pos) or multiplayer_text_rect.collidepoint(event.pos) or quit_text_rect.collidepoint(event.pos):
+                    if helpImg_rect.collidepoint(event.pos) or local_text_rect.collidepoint(event.pos) or quit_text_rect.collidepoint(event.pos):
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                    elif multiplayer_text_rect.collidepoint(event.pos) and self.multiplayer:
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
                     else:
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
@@ -106,7 +112,7 @@ class Game:
                     if local_text_rect.collidepoint(event.pos):
                         self.game_settings()
                         return
-                    elif multiplayer_text_rect.collidepoint(event.pos):
+                    elif multiplayer_text_rect.collidepoint(event.pos) and self.multiplayer:
                         self.game_settings()
                         return
                     elif quit_text_rect.collidepoint(event.pos):
@@ -132,7 +138,7 @@ class Game:
                 self.screen.blit(self.arrowImg, arrow_rect_left)
                 self.screen.blit(self.arrowImg2, arrow_rect_right)
 
-            elif multiplayer_text_rect.collidepoint(mouse_pos):
+            elif multiplayer_text_rect.collidepoint(mouse_pos) and self.multiplayer:
                 arrow_rect_left = self.arrowImg.get_rect(
                     center=(multiplayer_text_rect.left - self.arrow_offset, multiplayer_text_rect.centery))
                 arrow_rect_right = self.arrowImg2.get_rect(
@@ -301,7 +307,6 @@ class Game:
                         return
                     elif self.sprite_button.rect.collidepoint(event.pos):
                         self.advance_mode = self.sprite_button.advanced
-                        print(self.advance_mode)
                         self.sprite_button.handle_click(event.pos)
 
             self.screen.fill(self.background)
@@ -385,6 +390,14 @@ class Game:
             new_cell = random.choice(valid_neighbors)
             self.grid[new_cell[0]][new_cell[1]] = self.playerTurn
 
+    def get_advanced_expansion(self, row, col):
+        neighbors = self.get_neighbors(row, col)
+        opponent_neighbors = [(nr, nc) for nr, nc in neighbors if self.grid[nr][nc] == self.get_opponent()]
+
+        if opponent_neighbors:
+            new_cell = random.choice(opponent_neighbors)
+            self.grid[new_cell[0]][new_cell[1]] = self.playerTurn
+
     def random_expand(self, row, col):
         if not self.advance_mode:
             neighbors = self.get_neighbors(row, col)
@@ -404,16 +417,20 @@ class Game:
                 # Randomly select an opponent's piece to overwrite
                 new_cell = random.choice(opponent_neighbors)
                 self.grid[new_cell[0]][new_cell[1]] = self.playerTurn
-                new_neighbors = self.get_neighbors(new_cell[0], new_cell[1])
-                second_valid_neighbors = [(nr, nc) for nr, nc in new_neighbors if self.grid[nr][nc] == self.get_opponent()]
-                if second_valid_neighbors:
-                    new_cell = random.choice(second_valid_neighbors)
-                    self.grid[new_cell[0]][new_cell[1]] = self.playerTurn
+                if self.expansion == 2 or self.expansion == 3:
+                    self.get_advanced_expansion(new_cell[0], new_cell[1])
+                    if self.expansion == 3:
+                        self.get_advanced_expansion(new_cell[0], new_cell[1])
             else:
+                neighbors = self.get_neighbors(row, col)
                 valid_neighbors = [(nr, nc) for nr, nc in neighbors if self.grid[nr][nc] is None]
                 if valid_neighbors:
                     new_cell = random.choice(valid_neighbors)
                     self.grid[new_cell[0]][new_cell[1]] = self.playerTurn
+                    if self.expansion == 2 or self.expansion == 3:
+                        self.get_expansion(new_cell[0], new_cell[1])
+                        if self.expansion == 3:
+                            self.get_expansion(new_cell[0], new_cell[1])
 
     def handle_click(self, pos):
         x, y = pos
@@ -447,7 +464,6 @@ class Game:
         pygame.display.update()
         self.delay_active = True
         self.delay_start_time = pygame.time.get_ticks()
-
 
     def winner(self):
         if self.player1_score == self.player2_score:
@@ -504,6 +520,23 @@ class Game:
             self.screen.blit(main_menuText, main_menuText_rect)
             self.screen.blit(restartText, restartText_rect)
             self.screen.blit(quitText, quitText_rect)
+
+            if main_menuText_rect.collidepoint(pygame.mouse.get_pos()):
+                arrow_rect_left = self.arrowImg.get_rect(center=(main_menuText_rect.left - self.arrow_offset, main_menuText_rect.centery))
+                arrow_rect_right = self.arrowImg2.get_rect(center=(main_menuText_rect.right + self.arrow_offset, main_menuText_rect.centery))
+                self.screen.blit(self.arrowImg, arrow_rect_left)
+                self.screen.blit(self.arrowImg2, arrow_rect_right)
+            elif restartText_rect.collidepoint(pygame.mouse.get_pos()):
+                arrow_rect_left = self.arrowImg.get_rect(center=(restartText_rect.left - self.arrow_offset, restartText_rect.centery))
+                arrow_rect_right = self.arrowImg2.get_rect(center=(restartText_rect.right + self.arrow_offset, restartText_rect.centery))
+                self.screen.blit(self.arrowImg, arrow_rect_left)
+                self.screen.blit(self.arrowImg2, arrow_rect_right)
+            elif quitText_rect.collidepoint(pygame.mouse.get_pos()):
+                arrow_rect_left = self.arrowImg.get_rect(center=(quitText_rect.left - self.arrow_offset, quitText_rect.centery))
+                arrow_rect_right = self.arrowImg2.get_rect(center=(quitText_rect.right + self.arrow_offset, quitText_rect.centery))
+                self.screen.blit(self.arrowImg, arrow_rect_left)
+                self.screen.blit(self.arrowImg2, arrow_rect_right)
+
             pygame.display.update()
 
     def player_score(self):
@@ -520,6 +553,95 @@ class Game:
         self.screen.blit(title_text, title_text_rect)
         self.screen.blit(player1_score, (self.width // 10, 130))
         self.screen.blit(player2_score, (590, 130))
+
+    def pause(self):
+        paused_text = self.title_font2.render("Game Paused", True, (255, 255, 255))
+        paused_text_rect = paused_text.get_rect(center=(self.width // 2, 100))
+
+        pausedImg = pygame.transform.scale(pygame.image.load("objects/pausedIcon.png").convert_alpha(), (163, 258))
+        pausedImg_rect = pausedImg.get_rect(center=(self.width // 2, self.height // 2 - 70))
+
+        resume_text = self.sub_title_font.render("Resume", True, (255, 255, 255))
+        resume_text_rect = resume_text.get_rect(center=(self.width // 2, self.height // 2 + 100))
+
+        main_menu_text = self.sub_title_font.render("Main Menu", True, (255, 255, 255))
+        main_menu_text_rect = main_menu_text.get_rect(center=(self.width // 2, self.height // 2 + 150))
+
+        restart_text = self.sub_title_font.render("Restart", True, (255, 255, 255))
+        restart_text_rect = restart_text.get_rect(center=(self.width // 2, self.height // 2 + 200))
+
+        quit_text = self.sub_title_font.render("Quit", True, (255, 255, 255))
+        quit_text_rect = quit_text.get_rect(center=(self.width // 2, self.height // 2 + 250))
+
+        author_text = self.author_font.render("Created by: TeamBa", True, (255, 255, 255))
+        author_text_rect = author_text.get_rect(center=(self.width // 2, 720))
+
+        while True:
+            mouse_pos = pygame.mouse.get_pos()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    sys.exit()
+
+                if event.type == pygame.MOUSEMOTION:
+                    if resume_text_rect.collidepoint(event.pos) or main_menu_text_rect.collidepoint(event.pos) or restart_text_rect.collidepoint(event.pos) or quit_text_rect.collidepoint(event.pos):
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                    else:
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if resume_text_rect.collidepoint(event.pos):
+                        return
+                    elif main_menu_text_rect.collidepoint(event.pos):
+                        self.run()
+                        return
+                    elif restart_text_rect.collidepoint(event.pos):
+                        self.place_initial_cell()
+                        return
+                    elif quit_text_rect.collidepoint(event.pos):
+                        sys.exit()
+
+            self.screen.fill(self.background)
+            self.screen.blit(paused_text, paused_text_rect)
+            self.screen.blit(pausedImg, pausedImg_rect)
+            self.screen.blit(resume_text, resume_text_rect)
+            self.screen.blit(main_menu_text, main_menu_text_rect)
+            self.screen.blit(restart_text, restart_text_rect)
+            self.screen.blit(quit_text, quit_text_rect)
+            self.screen.blit(author_text, author_text_rect)
+
+            if resume_text_rect.collidepoint(mouse_pos):
+                arrow_rect_left = self.arrowImg.get_rect(
+                    center=(resume_text_rect.left - self.arrow_offset, resume_text_rect.centery))
+                arrow_rect_right = self.arrowImg2.get_rect(
+                    center=(resume_text_rect.right + self.arrow_offset, resume_text_rect.centery))
+                self.screen.blit(self.arrowImg, arrow_rect_left)
+                self.screen.blit(self.arrowImg2, arrow_rect_right)
+
+            elif main_menu_text_rect.collidepoint(mouse_pos):
+                arrow_rect_left = self.arrowImg.get_rect(
+                    center=(main_menu_text_rect.left - self.arrow_offset, main_menu_text_rect.centery))
+                arrow_rect_right = self.arrowImg2.get_rect(
+                    center=(main_menu_text_rect.right + self.arrow_offset, main_menu_text_rect.centery))
+                self.screen.blit(self.arrowImg, arrow_rect_left)
+                self.screen.blit(self.arrowImg2, arrow_rect_right)
+
+            elif restart_text_rect.collidepoint(mouse_pos):
+                arrow_rect_left = self.arrowImg.get_rect(
+                    center=(restart_text_rect.left - self.arrow_offset, restart_text_rect.centery))
+                arrow_rect_right = self.arrowImg2.get_rect(
+                    center=(restart_text_rect.right + self.arrow_offset, restart_text_rect.centery))
+                self.screen.blit(self.arrowImg, arrow_rect_left)
+                self.screen.blit(self.arrowImg2, arrow_rect_right)
+
+            elif quit_text_rect.collidepoint(mouse_pos):
+                arrow_rect_left = self.arrowImg.get_rect(
+                    center=(quit_text_rect.left - self.arrow_offset, quit_text_rect.centery))
+                arrow_rect_right = self.arrowImg2.get_rect(
+                    center=(quit_text_rect.right + self.arrow_offset, quit_text_rect.centery))
+                self.screen.blit(self.arrowImg, arrow_rect_left)
+                self.screen.blit(self.arrowImg2, arrow_rect_right)
+
+            pygame.display.update()
 
     def run(self):
         self.main_menu()
@@ -541,7 +663,7 @@ class Game:
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if pauseButton_rect.collidepoint(event.pos):
-                        print("Pause Button Clicked")
+                        self.pause()
                     elif self.canvas_screen.collidepoint(event.pos):
                         self.handle_click(event.pos)
 
