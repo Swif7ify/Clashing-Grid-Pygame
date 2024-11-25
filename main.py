@@ -2,6 +2,7 @@ import pygame
 import random
 import sys
 from spriteButton import Button
+# from network.client import Network
 
 class Game:
     def __init__(self):
@@ -16,9 +17,10 @@ class Game:
         self.playerTurn = 1
         self.player1_score = 0
         self.player2_score = 0
-        self.multiplayer = False
         self.inactive_color = (128, 128, 128)
         self.active_color = (255, 255, 255)
+        self.input_active_color = (0, 255, 0)
+        self.input_not_active_color = (255, 255, 255)
 
         # game settings
         self.expansion = 1
@@ -70,6 +72,11 @@ class Game:
         # FPS
         self.clock = pygame.time.Clock()
 
+        # multiplayer
+        self.multiplayer = True
+        self.multiplayer_active = False
+        self.code = None
+
     def main_menu(self):
         # self.game_settings()
         helpImg = pygame.transform.scale(pygame.image.load("objects/help.png").convert_alpha(), (50, 50))
@@ -113,7 +120,7 @@ class Game:
                         self.game_settings()
                         return
                     elif multiplayer_text_rect.collidepoint(event.pos) and self.multiplayer:
-                        self.game_settings()
+                        self.multiplayer_menu()
                         return
                     elif quit_text_rect.collidepoint(event.pos):
                         sys.exit()
@@ -267,6 +274,9 @@ class Game:
         play_text = self.title_font2.render("Play", True, (255, 255, 255))
         play_text_rect = play_text.get_rect(center=(self.width // 2, 630))
 
+        game_code_text = self.title_font.render(f"Game Code: {self.code}", True, (255, 0, 0))
+        game_code_text_rect = game_code_text.get_rect(center=(self.width // 2, 580))
+
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -338,6 +348,151 @@ class Game:
             self.all_sprite.draw(self.screen)
             self.screen.blit(advanced_mode, advanced_mode_rect)
             self.screen.blit(play_text, play_text_rect)
+            if self.multiplayer_active:
+                self.screen.blit(game_code_text, game_code_text_rect)
+            self.screen.blit(author_text, author_text_rect)
+            pygame.display.update()
+
+    def multiplayer_menu(self):
+        title_font = pygame.font.Font("fonts/Quinquefive-ALoRM.ttf", 32)
+        title_text = title_font.render("Clashing Grid", True, (255, 255, 255))
+        title_text_rect = title_text.get_rect(center=(self.width // 2, 100))
+
+        logo = pygame.transform.scale(pygame.image.load("objects/icon.png").convert_alpha(), (200, 200))
+        logo_rect = logo.get_rect(center=(self.width // 2, 300))
+
+        host = self.sub_title_font.render("Host a Game", True, (255, 255, 255))
+        host_rect = host.get_rect(center=(self.width // 2, 500))
+
+        join = self.sub_title_font.render("Join a Game", True,
+                                                      self.active_color if self.multiplayer else self.inactive_color)
+        join_rect = join.get_rect(center=(self.width // 2, 560))
+
+        back_text = self.sub_title_font.render("back", True, (255, 255, 255))
+        back_text_rect = back_text.get_rect(center=(self.width // 2, 620))
+
+        author_text = self.author_font.render("Created by: TeamBa", True, (255, 255, 255))
+        author_text_rect = author_text.get_rect(center=(self.width // 2, 720))
+
+        while True:
+            mouse_pos = pygame.mouse.get_pos()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    sys.exit()
+
+                if event.type == pygame.MOUSEMOTION:
+                    if host_rect.collidepoint(
+                            event.pos) or back_text_rect.collidepoint(event.pos):
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                    elif join_rect.collidepoint(event.pos) and self.multiplayer:
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                    else:
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if host_rect.collidepoint(event.pos):
+                        self.game_settings()
+                        return
+                    elif join_rect.collidepoint(event.pos) and self.multiplayer:
+                        self.join_game()
+                        return
+                    elif back_text_rect.collidepoint(event.pos):
+                        self.run()
+                        return
+
+            self.screen.fill(self.background)
+            self.screen.blit(title_text, title_text_rect)
+            self.screen.blit(logo, logo_rect)
+            self.screen.blit(host, host_rect)
+            self.screen.blit(join, join_rect)
+            self.screen.blit(back_text, back_text_rect)
+            self.screen.blit(author_text, author_text_rect)
+
+            if host_rect.collidepoint(mouse_pos):
+                arrow_rect_left = self.arrowImg.get_rect(
+                    center=(host_rect.left - self.arrow_offset, host_rect.centery))
+                arrow_rect_right = self.arrowImg2.get_rect(
+                    center=(host_rect.right + self.arrow_offset, host_rect.centery))
+                self.screen.blit(self.arrowImg, arrow_rect_left)
+                self.screen.blit(self.arrowImg2, arrow_rect_right)
+
+            elif join_rect.collidepoint(mouse_pos) and self.multiplayer:
+                arrow_rect_left = self.arrowImg.get_rect(
+                    center=(join_rect.left - self.arrow_offset, join_rect.centery))
+                arrow_rect_right = self.arrowImg2.get_rect(
+                    center=(join_rect.right + self.arrow_offset, join_rect.centery))
+                self.screen.blit(self.arrowImg, arrow_rect_left)
+                self.screen.blit(self.arrowImg2, arrow_rect_right)
+
+            elif back_text_rect.collidepoint(mouse_pos):
+                arrow_rect_left = self.arrowImg.get_rect(
+                    center=(back_text_rect.left - self.arrow_offset, back_text_rect.centery))
+                arrow_rect_right = self.arrowImg2.get_rect(
+                    center=(back_text_rect.right + self.arrow_offset, back_text_rect.centery))
+                self.screen.blit(self.arrowImg, arrow_rect_left)
+                self.screen.blit(self.arrowImg2, arrow_rect_right)
+
+            pygame.display.update()
+
+    def join_game(self):
+        title_text = self.title_font2.render("CLASHING GRID", True, (255, 255, 255))
+        title_text_rect = title_text.get_rect(center=(self.width // 2, 100))
+        iconImg = pygame.transform.scale(pygame.image.load("objects/icon.png").convert_alpha(), (200, 200))
+        iconImg_rect = iconImg.get_rect(center=(self.width // 2, 300))
+        enter_code = self.sub_title_font.render("Enter Game Code", True, (255, 255, 255))
+        enter_code_rect = enter_code.get_rect(center=(self.width // 2, 470))
+
+        input_text_box = pygame.Rect(self.width // 2 - 100, 500, 200, 50)
+
+        submit_text = self.title_font.render("Join Game", True, (255, 255, 255))
+        submit_text_rect = submit_text.get_rect(center=(self.width // 2, 620))
+
+        author_text = self.author_font.render("Created by: TeamBa", True, (255, 255, 255))
+        author_text_rect = author_text.get_rect(center=(self.width // 2, 720))
+
+        active = False
+        txt = ""
+        color = self.input_not_active_color
+
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    sys.exit()
+
+                if event.type == pygame.MOUSEMOTION:
+                    if submit_text_rect.collidepoint(event.pos) or input_text_box.collidepoint(event.pos):
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                    else:
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if input_text_box.collidepoint(event.pos):
+                        active = True
+                    elif submit_text_rect.collidepoint(event.pos):
+                        self.code = txt
+                        # self.multiplayer_active = True
+                        # self.game_settings()
+                        return
+
+                    color = self.input_active_color if active else self.input_not_active_color
+
+                elif event.type == pygame.KEYDOWN:
+                    if active:
+                        if event.key == pygame.K_BACKSPACE:
+                            txt = txt[:-1]
+                        else:
+                            if len(txt) < 9:
+                                txt += event.unicode
+
+
+            self.screen.fill(self.background)
+            self.screen.blit(title_text, title_text_rect)
+            txt_surface = self.title_font.render(txt, True, (255, 255, 255))
+            self.screen.blit(iconImg, iconImg_rect)
+            self.screen.blit(enter_code, enter_code_rect)
+            pygame.draw.rect(self.screen, color, input_text_box, 2)
+            self.screen.blit(txt_surface, (input_text_box.x + 5, input_text_box.y + 13))
+            self.screen.blit(submit_text, submit_text_rect)
             self.screen.blit(author_text, author_text_rect)
             pygame.display.update()
 
