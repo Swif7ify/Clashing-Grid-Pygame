@@ -85,9 +85,9 @@ You can visit my [itch.io](https://rinubi.itch.io/glid) where the game exe is up
 
 | | | |
 |:-------------------------:|:-------------------------:|:-------------------------:|
-|<img width="1604" alt="mainScreen" src="https://github.com/user-attachments/assets/2430466d-2864-475c-978c-7e24b1420f38">Main Screen|<img width="1604" alt="informationScreen" src="https://github.com/user-attachments/assets/56c0a79f-a47c-4f9e-a7d7-cdcdcbb3b965">Information Screen|<img width="1604" alt="gameScreen" src="https://github.com/user-attachments/assets/6d56abdc-ae43-42f8-b20f-564691743c8b">Game Screen|
-|<img width="1604" alt="betScreen" src="https://github.com/user-attachments/assets/cded1fcb-d67f-4531-8eeb-7a2d45082cb1">Setting Up Bet|<img width="1604" alt="lineScreen" src="https://github.com/user-attachments/assets/ff91f174-dc33-434b-982d-f93c217d5071">Choosing Lines|<img width="1604" alt="pauseScreen" src="https://github.com/user-attachments/assets/c67235e5-fd35-4417-b8af-05eaea06c6b1">Pause Screen|
-|<img width="1604" alt="multiplierScreen" src="https://github.com/user-attachments/assets/11d2d81c-1f8f-4529-a9f8-746c4d09f968">Fruit Multiplier Screen|
+|<img width="1604" alt="mainScreen" src="https://github.com/user-attachments/assets/296c1c6b-afb7-43fe-bd99-273c9921f388">Main Screen|<img width="1604" alt="informationScreen" src="https://github.com/user-attachments/assets/e42dcde2-bb3f-44e3-97e4-41f47453df20">Information Screen|<img width="1604" alt="gameScreen" src="https://github.com/user-attachments/assets/9e769250-2e48-4ab2-a480-1c6ee70866fa">Game Settings|
+|<img width="1604" alt="betScreen" src="https://github.com/user-attachments/assets/5d2df60d-87f0-4278-a470-899f99cf72e9">Multiplayer Screen|<img width="1604" alt="lineScreen" src="https://github.com/user-attachments/assets/539f8459-4bf9-42b2-af56-c0ed6d927d79">Joining Screen|<img width="1604" alt="pauseScreen" src="https://github.com/user-attachments/assets/c8acd17f-8600-4bd8-9e0d-9d3b0eec31b6">Game Screen|
+|<img width="1604" alt="multiplierScreen" src="https://github.com/user-attachments/assets/9ba9c7a9-038a-4de1-973f-d21b3046e37e">Pause Screen|<img width="1604" alt="multiplierScreen" src="https://github.com/user-attachments/assets/a8a2a774-6022-4fea-84f3-f925d6c6263a">Game Ended Screen|
 <br>
 
 
