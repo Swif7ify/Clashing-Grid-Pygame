@@ -3,18 +3,18 @@ import threading
 import json
 import sys
 
-class Network:
+class Client:
     def __init__(self, game, action):
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client.settimeout(10)  # Set a timeout for the socket
-        self.host = "localhost"  # Server's IP address
+        self.client.settimeout(10)
+        self.host = "localhost"
         self.port = 5555
         self.addr = (self.host, self.port)
         self.running = True
-        self.game_state = None  # Initialize game_state
-        self.game = game  # Initialize game
-        self.player_role = None  # Initialize player role
-        self.action = action  # Store the action (host or join)
+        self.game_state = None
+        self.game = game
+        self.player_role = None
+        self.action = action
         threading.Thread(target=self.receive, daemon=True).start()
         self.connect()
 
@@ -23,7 +23,13 @@ class Network:
             self.client.connect(self.addr)
             print("Connected to server")
             if self.action == "host":
-                self.send({"action": "host"})
+                self.send({
+                    "action": "host",
+                    "rows": self.game.rows,
+                    "cols": self.game.cols,
+                    "expansion": self.game.expansion,
+                    "advance_mode": self.game.advance_mode
+                })
             else:
                 self.send({"action": "join", "code": self.game.code})
         except (socket.error, socket.timeout) as e:
@@ -67,7 +73,7 @@ class Network:
                             print(f"Server update: {data}")
                             self.handle_server_update(data)
             except socket.timeout:
-                continue  # Ignore timeouts and keep listening
+                continue
             except socket.error as e:
                 print(f"Error receiving data: {e}")
                 self.running = False
@@ -82,12 +88,6 @@ class Network:
                 print("Game state received for Player 2.")
                 self.game_state = data["state"]
                 self.game.update_state(self.game_state)
-            elif data["action"] == "sync_grid":
-                # Handle grid synchronization for Player 2
-                print("Grid synchronized with Player 1.")
-                self.game_state = data["state"]
-                self.game.update_state(self.game_state)
         else:
-            # Update the local game state with the data received from the server
             self.game_state = data
             self.game.update_state(self.game_state)

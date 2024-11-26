@@ -1,8 +1,10 @@
+import threading
 import pygame
 import random
 import sys
 from spriteButton import Button
-# from network.client import Network
+from network.client import Client
+from network.server import Server
 
 class Game:
     def __init__(self):
@@ -75,6 +77,8 @@ class Game:
         # multiplayer
         self.multiplayer = True
         self.multiplayer_active = False
+        self.client = None
+        self.server = None
         self.code = None
 
     def main_menu(self):
@@ -274,8 +278,6 @@ class Game:
         play_text = self.title_font2.render("Play", True, (255, 255, 255))
         play_text_rect = play_text.get_rect(center=(self.width // 2, 630))
 
-        game_code_text = self.title_font.render(f"Game Code: {self.code}", True, (255, 0, 0))
-        game_code_text_rect = game_code_text.get_rect(center=(self.width // 2, 580))
 
         while True:
             for event in pygame.event.get():
@@ -313,6 +315,8 @@ class Game:
                         self.rows, self.cols = 15, 15
                         self.update_grid()
                     elif play_text_rect.collidepoint(event.pos):
+                        if self.multiplayer_active:
+                            self.start_multiplayer("host")
                         pygame.time.delay(2000)
                         return
                     elif self.sprite_button.rect.collidepoint(event.pos):
@@ -348,8 +352,6 @@ class Game:
             self.all_sprite.draw(self.screen)
             self.screen.blit(advanced_mode, advanced_mode_rect)
             self.screen.blit(play_text, play_text_rect)
-            if self.multiplayer_active:
-                self.screen.blit(game_code_text, game_code_text_rect)
             self.screen.blit(author_text, author_text_rect)
             pygame.display.update()
 
@@ -391,7 +393,7 @@ class Game:
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if host_rect.collidepoint(event.pos):
-                        self.game_settings()
+                        self.host_game()
                         return
                     elif join_rect.collidepoint(event.pos) and self.multiplayer:
                         self.join_game()
@@ -469,9 +471,9 @@ class Game:
                     if input_text_box.collidepoint(event.pos):
                         active = True
                     elif submit_text_rect.collidepoint(event.pos):
-                        self.code = txt
-                        # self.multiplayer_active = True
-                        # self.game_settings()
+                        self.code = txt.upper()
+                        self.multiplayer_active = True
+                        self.start_multiplayer("join")
                         return
 
                     color = self.input_active_color if active else self.input_not_active_color
@@ -510,19 +512,75 @@ class Game:
                 elif self.grid[row][col] == 2:
                     self.screen.blit(self.player2_color, (x + 7, y + 2))
 
+    def host_game(self):
+        try:
+            self.multiplayer_active = True
+            self.server = Server()
+            threading.Thread(target=self.server.run_server, daemon=True).start()
+            self.game_settings()
+            return
+        except Exception as e:
+            print(f"Failed to start server: {e}")
+            sys.exit()
+
+    def start_multiplayer(self, action):
+        try:
+            self.client = Client(self, action)
+            print("Connected to server")
+        except Exception as e:
+            print(f"Failed to connect: {e}")
+            sys.exit()
+
+    def send_data(self, action, state=None):
+        try:
+            data = {"action": action, "state": state}
+            self.client.send(data)
+        except Exception as e:
+            print(f"Error sending data: {e}")
+
+    def listen_for_updates(self):
+        while True:
+            try:
+                server_data = self.client.receive()
+                if server_data:
+                    if "error" in server_data:
+                        print(f"Error: {server_data['error']}")
+                        self.client.running = False
+                        return
+                    self.update_state(server_data)
+                    print("Updated game state from server.")
+            except Exception as e:
+                print(f"Error receiving data: {e}")
+
+    def update_state(self, state):
+        self.grid = state["grid"]
+        self.playerTurn = state["playerTurn"]
+        self.rows = state["rows"]
+        self.cols = state["cols"]
+        self.expansion = state["expansion"]
+        self.advance_mode = state["advance_mode"]
+        self.update_grid()
+        self.player_score()
+
     def place_initial_cell(self):
         self.player1_score = 0
         self.player2_score = 0
         self.grid = [[None for _ in range(self.cols)] for _ in range(self.rows)]
         self.playerTurn = 1
 
-        self.grid[random.randint(1, self.rows) // 2][self.cols // 3] = 1
-        self.grid[random.randint(1, self.rows) // 2][2 * self.cols // 3] = 2
+        self.grid[random.randint(0, self.rows - 1)][random.randint(0, self.cols // 3)] = 1
+        self.grid[random.randint(0, self.rows - 1)][random.randint(2 * self.cols // 3, self.cols - 1)] = 2
+
+    def restart_game(self):
+        self.place_initial_cell()
+        if self.multiplayer_active:
+            self.send_data("update", {"grid": self.grid, "playerTurn": self.playerTurn})
 
     def update_grid(self):
         self.cell_width = self.canvas_width // self.cols
         self.cell_height = self.canvas_height // self.rows
-        self.grid = [[None for _ in range(self.cols)] for _ in range(self.rows)]
+        if not self.multiplayer_active:
+            self.grid = [[None for _ in range(self.cols)] for _ in range(self.rows)]
         self.player1_color = pygame.transform.scale(self.player1_color, (self.cell_width - 15, self.cell_height - 5))
         self.player2_color = pygame.transform.scale(self.player2_color, (self.cell_width - 15, self.cell_height - 5))
 
@@ -591,14 +649,24 @@ class Game:
         x, y = pos
         col = (x - self.canvas_screen.x) // self.cell_width
         row = (y - self.canvas_screen.y) // self.cell_height
-
-        if 0 <= row < self.rows and 0 <= col < self.cols:  # Ensure click is within the grid
-            if self.grid[row][col] is None:  # If the clicked cell is empty
-                neighbors = self.get_neighbors(row, col)
-                if any(self.grid[nr][nc] == self.playerTurn for nr, nc in neighbors):  # Valid neighbor check
-                    self.grid[row][col] = self.playerTurn  # Update the grid
-                    self.random_expand(row, col)  # Expand to a random valid neighbor
-                    self.playerTurn = 2 if self.playerTurn == 1 else 1  # Alternate turn
+        if not self.multiplayer_active:
+            if 0 <= row < self.rows and 0 <= col < self.cols:  # Ensure click is within the grid
+                if self.grid[row][col] is None:  # If the clicked cell is empty
+                    neighbors = self.get_neighbors(row, col)
+                    if any(self.grid[nr][nc] == self.playerTurn for nr, nc in neighbors):  # Valid neighbor check
+                        self.grid[row][col] = self.playerTurn  # Update the grid
+                        self.random_expand(row, col)  # Expand to a random valid neighbor
+                        self.playerTurn = 2 if self.playerTurn == 1 else 1  # Alternate turn
+        else:
+            if 0 <= row < self.rows and 0 <= col < self.cols:
+                if self.grid[row][
+                    col] is None and self.client.player_role == self.playerTurn:
+                    neighbors = self.get_neighbors(row, col)
+                    if any(self.grid[nr][nc] == self.playerTurn for nr, nc in neighbors):
+                        self.grid[row][col] = self.playerTurn
+                        self.random_expand(row, col)
+                        self.send_data("update", {"grid": self.grid, "playerTurn": self.playerTurn})
+                        self.playerTurn = 2 if self.playerTurn == 1 else 1
 
     def check_winner(self):
         for row in range(self.rows):
@@ -660,7 +728,7 @@ class Game:
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if restartText_rect.collidepoint(event.pos):
-                        self.place_initial_cell()
+                        self.restart_game()
                         return
                     elif main_menuText_rect.collidepoint(event.pos):
                         self.run()
@@ -750,7 +818,7 @@ class Game:
                         self.run()
                         return
                     elif restart_text_rect.collidepoint(event.pos):
-                        self.place_initial_cell()
+                        self.restart_game()
                         return
                     elif quit_text_rect.collidepoint(event.pos):
                         sys.exit()
@@ -801,6 +869,10 @@ class Game:
     def run(self):
         self.main_menu()
         self.place_initial_cell()
+        while self.multiplayer_active and self.code is None:
+            pygame.time.wait(100)
+        game_code_text = self.title_font.render(f"Game Code: {self.code}", True, (255, 0, 0))
+        game_code_text_rect = game_code_text.get_rect(center=(self.width // 2, 30))
 
         pauseButton = pygame.transform.scale(pygame.image.load("objects/pauseButton.png").convert_alpha(), (40, 40))
         pauseButton_rect = pauseButton.get_rect(center=(self.width - 50, 40))
@@ -827,6 +899,8 @@ class Game:
             self.player_score()
             self.draw_header() # draws game header
             self.draw_grid() # draws grid
+            if self.multiplayer_active:
+                self.screen.blit(game_code_text, game_code_text_rect)
             if self.delay_active:
                 current_time = pygame.time.get_ticks()
                 if current_time - self.delay_start_time >= self.delay_duration:
