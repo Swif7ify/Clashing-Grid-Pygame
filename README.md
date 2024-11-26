@@ -14,6 +14,8 @@
 - [Screenshots](#-screenshots)
 - [License](#-license)
 - [Contact](#-contact)
+
+
 <br>
 
 
@@ -34,7 +36,7 @@ In Glid, players must be strategic in placing their pieces to achieve and conque
 <br>
 
 
-https://github.com/user-attachments/assets/8aa384b1-b2d8-4ae0-892c-cae3eb930f02
+https://github.com/user-attachments/assets/a5b0ed3b-921e-4d03-a113-95ba28289b93
 
 <br>
 
