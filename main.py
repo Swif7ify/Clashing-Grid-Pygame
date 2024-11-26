@@ -79,7 +79,8 @@ class Game:
         self.multiplayer_active = False
         self.client = None
         self.server = None
-        self.code = None
+        self.server_ip = None
+        self.server_ip_active = True
 
     def main_menu(self):
         # self.game_settings()
@@ -294,6 +295,8 @@ class Game:
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if back_button_rect.collidepoint(event.pos):
+                        if self.server:
+                            self.multiplayer_exit_connection()
                         self.run()
                         return
                     elif ex1_rect.collidepoint(event.pos):
@@ -437,6 +440,9 @@ class Game:
             pygame.display.update()
 
     def join_game(self):
+        play_button = pygame.transform.scale(pygame.image.load("objects/playButtonWhite.png").convert_alpha(), (50, 50))
+        play_button_rect = play_button.get_rect(center=(self.width - 40, 40))
+
         title_text = self.title_font2.render("CLASHING GRID", True, (255, 255, 255))
         title_text_rect = title_text.get_rect(center=(self.width // 2, 100))
         iconImg = pygame.transform.scale(pygame.image.load("objects/icon.png").convert_alpha(), (200, 200))
@@ -444,7 +450,7 @@ class Game:
         enter_code = self.sub_title_font.render("Enter Game Code", True, (255, 255, 255))
         enter_code_rect = enter_code.get_rect(center=(self.width // 2, 470))
 
-        input_text_box = pygame.Rect(self.width // 2 - 100, 500, 200, 50)
+        input_text_box = pygame.Rect(self.width // 2 - 200, 500, 400, 50)
 
         submit_text = self.title_font.render("Join Game", True, (255, 255, 255))
         submit_text_rect = submit_text.get_rect(center=(self.width // 2, 620))
@@ -462,7 +468,7 @@ class Game:
                     sys.exit()
 
                 if event.type == pygame.MOUSEMOTION:
-                    if submit_text_rect.collidepoint(event.pos) or input_text_box.collidepoint(event.pos):
+                    if submit_text_rect.collidepoint(event.pos) or input_text_box.collidepoint(event.pos) or play_button_rect.collidepoint(event.pos):
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
                     else:
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
@@ -471,9 +477,12 @@ class Game:
                     if input_text_box.collidepoint(event.pos):
                         active = True
                     elif submit_text_rect.collidepoint(event.pos):
-                        self.code = txt.upper()
+                        self.server_ip = txt.upper()
                         self.multiplayer_active = True
                         self.start_multiplayer("join")
+                        return
+                    elif play_button_rect.collidepoint(event.pos):
+                        self.run()
                         return
 
                     color = self.input_active_color if active else self.input_not_active_color
@@ -483,12 +492,13 @@ class Game:
                         if event.key == pygame.K_BACKSPACE:
                             txt = txt[:-1]
                         else:
-                            if len(txt) < 9:
+                            if len(txt) < 18:
                                 txt += event.unicode
 
 
             self.screen.fill(self.background)
             self.screen.blit(title_text, title_text_rect)
+            self.screen.blit(play_button, play_button_rect)
             txt_surface = self.title_font.render(txt, True, (255, 255, 255))
             self.screen.blit(iconImg, iconImg_rect)
             self.screen.blit(enter_code, enter_code_rect)
@@ -516,6 +526,7 @@ class Game:
         try:
             self.multiplayer_active = True
             self.server = Server()
+            self.server_ip = self.server.host_ip
             threading.Thread(target=self.server.run_server, daemon=True).start()
             self.game_settings()
             return
@@ -525,7 +536,7 @@ class Game:
 
     def start_multiplayer(self, action):
         try:
-            self.client = Client(self, action)
+            self.client = Client(self, action, self.server_ip)
             print("Connected to server")
         except Exception as e:
             print(f"Failed to connect: {e}")
@@ -777,6 +788,18 @@ class Game:
         self.screen.blit(player1_score, (self.width // 10, 130))
         self.screen.blit(player2_score, (590, 130))
 
+    def multiplayer_exit_connection(self):
+        if self.client:
+            self.client.running = False
+            self.client = None
+        self.multiplayer_active = False
+        self.server_ip_active = True
+        if self.server:
+            self.server.stop_server()
+            self.server_ip = None
+            self.server = None
+        self.run()
+
     def pause(self):
         paused_text = self.title_font2.render("Game Paused", True, (255, 255, 255))
         paused_text_rect = paused_text.get_rect(center=(self.width // 2, 100))
@@ -815,6 +838,8 @@ class Game:
                     if resume_text_rect.collidepoint(event.pos):
                         return
                     elif main_menu_text_rect.collidepoint(event.pos):
+                        if self.server:
+                            self.multiplayer_exit_connection()
                         self.run()
                         return
                     elif restart_text_rect.collidepoint(event.pos):
@@ -869,9 +894,9 @@ class Game:
     def run(self):
         self.main_menu()
         self.place_initial_cell()
-        while self.multiplayer_active and self.code is None:
+        while self.multiplayer_active and self.server_ip is None:
             pygame.time.wait(100)
-        game_code_text = self.title_font.render(f"Game Code: {self.code}", True, (255, 0, 0))
+        game_code_text = self.sub_title_font.render(f"Game Code: {self.server_ip}", True, (255, 0, 0))
         game_code_text_rect = game_code_text.get_rect(center=(self.width // 2, 30))
 
         pauseButton = pygame.transform.scale(pygame.image.load("objects/pauseButton.png").convert_alpha(), (40, 40))
@@ -883,7 +908,7 @@ class Game:
                     self.running = False
 
                 if event.type == pygame.MOUSEMOTION:
-                    if pauseButton_rect.collidepoint(event.pos):
+                    if pauseButton_rect.collidepoint(event.pos) or game_code_text_rect.collidepoint(event.pos):
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
                     else:
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
@@ -893,13 +918,15 @@ class Game:
                         self.pause()
                     elif self.canvas_screen.collidepoint(event.pos):
                         self.handle_click(event.pos)
+                    elif game_code_text_rect.collidepoint(event.pos):
+                        self.server_ip_active = False
 
             self.screen.fill(self.background)
             self.screen.blit(pauseButton, pauseButton_rect)
             self.player_score()
             self.draw_header() # draws game header
             self.draw_grid() # draws grid
-            if self.multiplayer_active:
+            if self.multiplayer_active and self.server_ip_active:
                 self.screen.blit(game_code_text, game_code_text_rect)
             if self.delay_active:
                 current_time = pygame.time.get_ticks()

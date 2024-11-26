@@ -1,13 +1,15 @@
+# Chain Reaction/network/client.py
 import socket
 import threading
 import json
 import sys
 
 class Client:
-    def __init__(self, game, action):
+    def __init__(self, game, action, server_ip):
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client.settimeout(10)
-        self.host = "localhost"
+        self.client.settimeout(20)
+        self.host = server_ip
+        print(f"Connecting to server at {self.host}")
         self.port = 5555
         self.addr = (self.host, self.port)
         self.running = True
@@ -31,7 +33,7 @@ class Client:
                     "advance_mode": self.game.advance_mode
                 })
             else:
-                self.send({"action": "join", "code": self.game.code})
+                self.send({"action": "join"})
         except (socket.error, socket.timeout) as e:
             print(f"Connection error: {e}")
             sys.exit()
@@ -43,8 +45,6 @@ class Client:
         :param data: dict
         """
         try:
-            if "code" not in data:
-                data["code"] = self.game.code  # Include the game code in the data if not already present
             self.client.send((json.dumps(data) + "\n").encode('utf-8'))
         except socket.error as e:
             print(f"Error sending data: {e}")
@@ -61,8 +61,6 @@ class Client:
                         data = json.loads(message)
                         if "playerRole" in data:
                             self.player_role = data["playerRole"]
-                            if "code" in data:
-                                self.game.code = data["code"]
                             if "state" in data:
                                 self.game.update_state(data["state"])
                             print(f"Assigned player role: {self.player_role}")

@@ -4,25 +4,26 @@ import json
 import random
 
 class Server:
-    def __init__(self, host="127.0.0.1", port=5555):
+    def __init__(self, port=5555):
+        self.host_ip = socket.gethostbyname(socket.gethostname())
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server.bind((host, port))
+        self.server.bind(("", port))
         self.server.listen()
-        print("Server started on", host, ":", port)
+        print("Server started on", self.host_ip, ":", port)
 
         self.connections = []
         self.game_states = {}
         self.player_roles = {}
-        self.game_codes = {}
         self.lock = threading.Lock()
+        self.running = True
 
-    def broadcast(self, data, game_code):
+    def broadcast(self, data):
         message = json.dumps(data) + "\n"
-        for conn in self.game_codes[game_code]:
+        for conn in self.connections:
             try:
                 conn.send(message.encode('utf-8'))
             except socket.error:
-                self.game_codes[game_code].remove(conn)
+                self.connections.remove(conn)
 
     def handle_client(self, conn, addr):
         print(f"New connection from {addr}")
@@ -36,10 +37,9 @@ class Server:
                 with self.lock:
                     data = json.loads(data)
                     if data["action"] == "host":
-                        game_code = str(random.randint(10000, 99999))
-                        self.game_codes[game_code] = [conn]
+                        self.connections.append(conn)
                         self.player_roles[conn] = 1
-                        self.game_states[game_code] = {
+                        self.game_states[conn] = {
                             "grid": [[None for _ in range(data.get("cols", 6))] for _ in range(data.get("rows", 6))],
                             "playerTurn": 1,
                             "rows": data.get("rows", 6),
@@ -47,15 +47,14 @@ class Server:
                             "expansion": data.get("expansion", 1),
                             "advance_mode": data.get("advance_mode", False)
                         }
-                        conn.send((json.dumps({"playerRole": 1, "code": game_code}) + "\n").encode('utf-8'))
+                        conn.send((json.dumps({"playerRole": 1}) + "\n").encode('utf-8'))
                     elif data["action"] == "join":
-                        game_code = data["code"]
-                        if game_code in self.game_codes and len(self.game_codes[game_code]) == 1:
-                            self.game_codes[game_code].append(conn)
+                        if len(self.connections) == 1:
+                            self.connections.append(conn)
                             self.player_roles[conn] = 2
 
                             # Initialize starting positions for both players
-                            game_state = self.game_states[game_code]
+                            game_state = self.game_states[self.connections[0]]
                             rows = game_state["rows"]
                             cols = game_state["cols"]
 
@@ -68,7 +67,7 @@ class Server:
 
                             game_state["playerTurn"] = 1  # Always start with Player 1
 
-                            self.game_states[game_code] = game_state
+                            self.game_states[self.connections[0]] = game_state
 
                             # Send initial state to Player 2
                             conn.send((json.dumps({
@@ -78,31 +77,27 @@ class Server:
                             }) + "\n").encode('utf-8'))
 
                             # Notify Player 1 that Player 2 has joined
-                            player1_conn = self.game_codes[game_code][0]
+                            player1_conn = self.connections[0]
                             player1_conn.send((json.dumps({
                                 "action": "player2_joined",
                                 "state": game_state
                             }) + "\n").encode('utf-8'))
 
                     elif data["action"] == "update":
-                        game_code = data["code"]
-                        if self.player_roles[conn] == self.game_states[game_code]["playerTurn"]:
+                        if self.player_roles[conn] == self.game_states[self.connections[0]]["playerTurn"]:
                             # Preserve the game configuration while updating the state
-                            current_state = self.game_states[game_code]
+                            current_state = self.game_states[self.connections[0]]
                             new_state = data["state"]
                             current_state["grid"] = new_state["grid"]
                             current_state["playerTurn"] = 2 if current_state["playerTurn"] == 1 else 1
-                            self.game_states[game_code] = current_state
-                            self.broadcast(self.game_states[game_code], game_code)
+                            self.game_states[self.connections[0]] = current_state
+                            self.broadcast(self.game_states[self.connections[0]])
 
                     elif data["action"] == "disconnect":
                         print(f"{addr} disconnected.")
-                        for game_code, conns in self.game_codes.items():
-                            if conn in conns:
-                                for c in conns:
-                                    c.close()
-                                del self.game_codes[game_code]
-                                break
+                        if conn in self.connections:
+                            self.connections.remove(conn)
+                            conn.close()
                         self.player_roles.clear()
                         break
 
@@ -115,12 +110,21 @@ class Server:
     def run_server(self):
         print("Server is running...")
         try:
-            while True:
+            while self.running:
                 conn, addr = self.server.accept()
                 threading.Thread(target=self.handle_client, args=(conn, addr), daemon=True).start()
-        except KeyboardInterrupt:
-            print("\nServer shutting down...")
-            self.server.close()
+        except OSError as e:
+            print(f"Server stopped: {e}")
+
+    def stop_server(self):
+        print("Server is stopping...")
+        self.running = False
+        self.server.close()
+        for conn in self.connections:
+            conn.close()
+        self.connections.clear()
+        self.game_states.clear()
+        self.player_roles.clear()
 
 if __name__ == "__main__":
     Server().run_server()
