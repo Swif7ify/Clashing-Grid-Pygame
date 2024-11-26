@@ -9,6 +9,10 @@ from network.server import Server
 class Game:
     def __init__(self):
         pygame.init()
+        pygame.mixer.init()
+        pygame.mixer.music.load("music/mainBGM.mp3")
+        pygame.mixer.music.play(-1)
+        pygame.mixer.music.set_volume(0.3)
         self.width, self.height = 750, 750
         self.screen = pygame.display.set_mode((self.width, self.height))
         self.background = (0, 0, 0)
@@ -23,6 +27,7 @@ class Game:
         self.active_color = (255, 255, 255)
         self.input_active_color = (0, 255, 0)
         self.input_not_active_color = (255, 255, 255)
+        self.cursor_active = False
 
         # game settings
         self.expansion = 1
@@ -115,12 +120,21 @@ class Game:
                 if event.type == pygame.MOUSEMOTION:
                     if helpImg_rect.collidepoint(event.pos) or local_text_rect.collidepoint(event.pos) or quit_text_rect.collidepoint(event.pos):
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                        if not self.cursor_active:
+                            pygame.mixer.Sound("XFX/hoverClickable.mp3").play()
+                            self.cursor_active = True
                     elif multiplayer_text_rect.collidepoint(event.pos) and self.multiplayer:
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                        if not self.cursor_active:
+                            pygame.mixer.Sound("XFX/hoverClickable.mp3").play()
+                            self.cursor_active = True
                     else:
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+                        self.cursor_active = False
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if local_text_rect.collidepoint(event.pos) or multiplayer_text_rect.collidepoint(event.pos) or quit_text_rect.collidepoint(event.pos) or helpImg_rect.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/clicksXFX.mp3").play()
                     if local_text_rect.collidepoint(event.pos):
                         self.game_settings()
                         return
@@ -212,12 +226,17 @@ class Game:
 
                 if event.type == pygame.MOUSEMOTION:
                     if play_button_rect.collidepoint(event.pos):
+                        if not self.cursor_active:
+                            pygame.mixer.Sound("XFX/hoverClickable.mp3").play()
+                            self.cursor_active = True
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
                     else:
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+                        self.cursor_active = False
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if play_button_rect.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/backXFX.mp3").play()
                         self.run()
                         return
 
@@ -286,15 +305,25 @@ class Game:
                     sys.exit()
 
                 if event.type == pygame.MOUSEMOTION:
+                    if back_button_rect.collidepoint(event.pos):
+                        if not self.cursor_active:
+                            pygame.mixer.Sound("XFX/hoverClickable.mp3").play()
+                            self.cursor_active = True
+                    if play_text_rect.collidepoint(event.pos):
+                        if not self.cursor_active:
+                            pygame.mixer.Sound("XFX/hoverClickable.mp3").play()
+                            self.cursor_active = True
                     if back_button_rect.collidepoint(event.pos) or ex1_rect.collidepoint(event.pos) or ex2_rect.collidepoint(event.pos) or ex3_rect.collidepoint(event.pos) or g1_rect.collidepoint(event.pos) or g2_rect.collidepoint(event.pos) or g3_rect.collidepoint(event.pos) or g4_rect.collidepoint(event.pos) or play_text_rect.collidepoint(event.pos):
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
                     elif self.sprite_button.rect.collidepoint(event.pos):
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
                     else:
+                        self.cursor_active = False
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if back_button_rect.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/backXFX.mp3").play()
                         if self.server:
                             self.multiplayer_exit_connection()
                         self.run()
@@ -318,9 +347,14 @@ class Game:
                         self.rows, self.cols = 15, 15
                         self.update_grid()
                     elif play_text_rect.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/startXFX.mp3").play()
+                        pygame.mixer.music.stop()
                         if self.multiplayer_active:
                             self.start_multiplayer("host")
                         pygame.time.delay(2000)
+                        pygame.mixer.music.load("music/gameBGM.mp3")
+                        pygame.mixer.music.play(-1)
+                        pygame.mixer.music.set_volume(0.1)
                         return
                     elif self.sprite_button.rect.collidepoint(event.pos):
                         self.advance_mode = self.sprite_button.advanced
@@ -389,12 +423,21 @@ class Game:
                     if host_rect.collidepoint(
                             event.pos) or back_text_rect.collidepoint(event.pos):
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                        if not self.cursor_active:
+                            pygame.mixer.Sound("XFX/hoverClickable.mp3").play()
+                            self.cursor_active = True
                     elif join_rect.collidepoint(event.pos) and self.multiplayer:
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                        if not self.cursor_active:
+                            pygame.mixer.Sound("XFX/hoverClickable.mp3").play()
+                            self.cursor_active = True
                     else:
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+                        self.cursor_active = False
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if host_rect.collidepoint(event.pos) or join_rect.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/clicksXFX.mp3").play()
                     if host_rect.collidepoint(event.pos):
                         self.host_game()
                         return
@@ -402,6 +445,7 @@ class Game:
                         self.join_game()
                         return
                     elif back_text_rect.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/backXFX.mp3").play()
                         self.run()
                         return
 
@@ -469,19 +513,26 @@ class Game:
 
                 if event.type == pygame.MOUSEMOTION:
                     if submit_text_rect.collidepoint(event.pos) or input_text_box.collidepoint(event.pos) or play_button_rect.collidepoint(event.pos):
+                        if not self.cursor_active:
+                            pygame.mixer.Sound("XFX/hoverClickable.mp3").play()
+                            self.cursor_active = True
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
                     else:
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+                        self.cursor_active = False
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if input_text_box.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/clicksXFX.mp3").play()
                         active = True
                     elif submit_text_rect.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/startXFX.mp3").play()
                         self.server_ip = txt.upper()
                         self.multiplayer_active = True
                         self.start_multiplayer("join")
                         return
                     elif play_button_rect.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/backXFX.mp3").play()
                         self.run()
                         return
 
@@ -490,9 +541,11 @@ class Game:
                 elif event.type == pygame.KEYDOWN:
                     if active:
                         if event.key == pygame.K_BACKSPACE:
+                            pygame.mixer.Sound("XFX/keySound.mp3").play()
                             txt = txt[:-1]
                         else:
                             if len(txt) < 18:
+                                pygame.mixer.Sound("XFX/keySound.mp3").play()
                                 txt += event.unicode
 
 
@@ -697,9 +750,12 @@ class Game:
         # Proceed to the winner method
         pygame.display.update()
         self.delay_active = True
+        pygame.mixer.music.stop()
+        pygame.mixer.Sound("XFX/gameEnded.wav").play()
         self.delay_start_time = pygame.time.get_ticks()
 
     def winner(self):
+        pygame.mixer.Sound("XFX/winXFX.mp3").play()
         if self.player1_score == self.player2_score:
             game_overText = self.title_font.render("Draw", True, (255, 255, 255))
             game_overText_rect = game_overText.get_rect(center=(self.width // 2, 100))
@@ -733,15 +789,33 @@ class Game:
 
                 if event.type == pygame.MOUSEMOTION:
                     if main_menuText_rect.collidepoint(event.pos) or restartText_rect.collidepoint(event.pos) or quitText_rect.collidepoint(event.pos):
+                        if not self.cursor_active:
+                            pygame.mixer.Sound("XFX/hoverClickable.mp3").play()
+                            self.cursor_active = True
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
                     else:
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+                        self.cursor_active = False
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if restartText_rect.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/startXFX.mp3").play()
+                        pygame.mixer.music.stop()
+                        pygame.time.delay(2000)
+                        pygame.mixer.music.load("music/gameBGM.mp3")
+                        pygame.mixer.music.play(-1)
+                        pygame.mixer.music.set_volume(0.1)
                         self.restart_game()
                         return
                     elif main_menuText_rect.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/disconnect.mp3").play()
+                        pygame.mixer.music.stop()
+                        if self.server:
+                            self.multiplayer_exit_connection()
+                        pygame.time.delay(2000)
+                        pygame.mixer.music.load("music/mainBGM.mp3")
+                        pygame.mixer.music.play(-1)
+                        pygame.mixer.music.set_volume(0.3)
                         self.run()
                         return
                     elif quitText_rect.collidepoint(event.pos):
@@ -831,18 +905,35 @@ class Game:
                 if event.type == pygame.MOUSEMOTION:
                     if resume_text_rect.collidepoint(event.pos) or main_menu_text_rect.collidepoint(event.pos) or restart_text_rect.collidepoint(event.pos) or quit_text_rect.collidepoint(event.pos):
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                        if not self.cursor_active:
+                            pygame.mixer.Sound("XFX/hoverClickable.mp3").play()
+                            self.cursor_active = True
                     else:
                         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+                        self.cursor_active = False
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if resume_text_rect.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/clicksXFX.mp3").play()
                         return
                     elif main_menu_text_rect.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/disconnect.mp3").play()
+                        pygame.mixer.music.stop()
                         if self.server:
                             self.multiplayer_exit_connection()
+                        pygame.time.delay(2000)
+                        pygame.mixer.music.load("music/mainBGM.mp3")
+                        pygame.mixer.music.play(-1)
+                        pygame.mixer.music.set_volume(0.3)
                         self.run()
                         return
                     elif restart_text_rect.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/startXFX.mp3").play()
+                        pygame.mixer.music.stop()
+                        pygame.time.delay(2000)
+                        pygame.mixer.music.load("music/gameBGM.mp3")
+                        pygame.mixer.music.play(-1)
+                        pygame.mixer.music.set_volume(0.1)
                         self.restart_game()
                         return
                     elif quit_text_rect.collidepoint(event.pos):
@@ -915,8 +1006,13 @@ class Game:
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if pauseButton_rect.collidepoint(event.pos):
+                        pygame.mixer.Sound("XFX/menuClick.mp3").play()
                         self.pause()
                     elif self.canvas_screen.collidepoint(event.pos):
+                        col = (event.pos[0] - self.canvas_screen.x) // self.cell_width
+                        row = (event.pos[1] - self.canvas_screen.y) // self.cell_height
+                        if self.grid[row][col] is None:
+                            pygame.mixer.Sound("XFX/placeXFX.mp3").play()
                         self.handle_click(event.pos)
                     elif game_code_text_rect.collidepoint(event.pos):
                         self.server_ip_active = False
