@@ -18,6 +18,10 @@
 
 <br>
 
+>[!NOTE]
+>GAME REWORKED: CLID WILL BE HAVING NEW FEATURES. EXPECTED GAME UPDATE WILL BE JANUARY 2025
+
+<br>
 
 >[!NOTE]
    >Updated: Added Game BGM and Sound Effects **`26-11-2024 10:45PM`** <br>
