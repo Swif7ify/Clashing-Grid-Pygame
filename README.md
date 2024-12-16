@@ -32,7 +32,7 @@ Clid is a strategic multiplayer game where players compete to dominate the grid 
 
 
 ## 💡 Gameplay
-In Glid, players must be strategic in placing their pieces to achieve and conquer victory. Test your might against your friends.
+In Clid, players must be strategic in placing their pieces to achieve and conquer victory. Test your might against your friends.
 <br>
 
 
@@ -78,7 +78,7 @@ You can visit my [itch.io](https://rinubi.itch.io/glid) where the game exe is up
 2. **Game Mode:** Select multiplayer or local play
    - For multiplayer Host a game and select game settings and press start
    - For joining the Host game look for game code (server ip) on the host game and type it in
-   - NOTE When doing multiplayer make sure Glid game is both enabled in public and private networks
+   - NOTE When doing multiplayer make sure Clid game is both enabled in public and private networks
 4. **Game Settings:** Modify your game settings to fit your gameplay
 5. **Dominate:** Conquer your opponents
 <br>
